@@ -1,0 +1,22 @@
+{
+  "name": "solar-roof-analyzer",
+  "version": "1.0.0",
+  "description": "AI-powered solar roof analysis using Google Solar API",
+  "main": "api/analyze-roof.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "keywords": ["solar", "roof", "analysis", "ai", "google-solar"],
+  "author": "Steve Winfield",
+  "license": "MIT",
+  "dependencies": {
+    "node-fetch": "^2.6.7"
+  },
+  "devDependencies": {
+    "@vercel/node": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=18.x"
+  }
+}

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solar Roof Analyzer - See Your Potential</title>
+    <link rel="stylesheet" href="styles.css">
+    </head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>☀️ Solar Roof Analyzer</h1>
+            <p class="subtitle">Discover your roof's solar potential in seconds</p>
+        </header>
+
+        <section class="input-section" id="inputSection">
+            <div class="input-card">
+                <h2>Enter Your Address</h2>
+                <p>We'll analyze your roof using Google Solar AI and satellite imagery.</p>
+                
+                <form id="addressForm">
+                    <div class="form-group">
+                        <input 
+                            type="text" 
+                            id="addressInput" 
+                            placeholder="1712 Galahad Ln, Arlington, TX 76014"
+                            required
+                            autocomplete="street-address"
+                        >
+                    </div>
+                    <button type="submit" class="btn-primary" id="analyzeBtn">
+                        <span id="btnText">Analyze My Roof</span>
+                        <span id="btnLoader" class="loader" style="display: none;"></span>
+                    </button>
+                </form>
+
+                <div id="errorMessage" class="error-message" style="display: none;"></div>
+            </div>
+        </section>
+
+        <section class="loading-section" id="loadingSection" style="display: none;">
+            <div class="loading-card">
+                <div class="spinner"></div>
+                <h3>Analyzing Your Roof...</h3>
+                <p id="loadingStatus">Retrieving satellite imagery</p>
+            </div>
+        </section>
+
+        <section class="results-section" id="resultsSection" style="display: none;">
+            <div class="results-header">
+                <h2 id="resultAddress">Roof Analysis Results</h2>
+                <button class="btn-secondary" onclick="startOver()">Analyze Another Address</button>
+            </div>
+
+            <div class="map-container">
+                <h3>Optimal Panel Placement</h3>
+                <div id="map" class="map"></div>
+                <p class="imagery-date">Imagery Date: <span id="imageryDate"></span></p>
+            </div>
+
+            <div class="recommendation-card primary" id="primaryRecommendation">
+                <h3>🎯 Our Recommendation</h3>
+                <div id="primaryRecText"></div>
+            </div>
+            
+            <div class="summary-grid" id="summaryGrid"></div>
+
+            <div class="segments-container">
+                <h3>Detailed Roof Segment Analysis</h3>
+                <div class="segments-grid" id="segmentsGrid"></div>
+            </div>
+
+            <div class="configuration-card" id="configurationCard">
+                <h3>Optimal System Design</h3>
+                <div id="configurationContent"></div>
+            </div>
+
+            <div class="cta-section">
+                <h3>Ready to Go Solar?</h3>
+                <p>Get custom quotes from local installers based on this analysis</p>
+                <button class="btn-primary btn-large">Get Free Quotes</button>
+            </div>
+        </section>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
