@@ -1,41 +1,32 @@
 {
   "version": 2,
   "builds": [
-    // 1. Build all static files (index.html, app.js, styles.css)
     {
-      "src": "public/**",
+      "src": "public/index.html",
       "use": "@vercel/static"
     },
-    // 2. Build all files in 'api' as Node.js Serverless Functions
     {
-      "src": "api/*.js",
+      "src": "api/analyze-roof.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "api/data-layer.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "api/geocode.js",
       "use": "@vercel/node"
     }
   ],
   "routes": [
-    // CRITICAL: Explicitly define the map-config route first to ensure it's found
-    {
-      "src": "/api/map-config",
-      "dest": "/api/map-config.js"
-    },
-    // Define explicit routes for other API files for good measure
-    {
-      "src": "/api/geocode",
-      "dest": "/api/geocode.js"
-    },
-    {
-      "src": "/api/analyze-roof",
-      "dest": "/api/analyze-roof.js"
-    },
-    // Fallback: Catch any other paths in the /api folder
     {
       "src": "/api/(.*)",
       "dest": "/api/$1"
     },
-    // Root fallback: Serve the index.html from the public folder
     {
       "src": "/(.*)",
       "dest": "/public/index.html"
     }
   ]
 }
+
