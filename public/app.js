@@ -90,11 +90,12 @@ function displayResults(analysis) {
     displayRoofSegments(analysis);
     displayOptimalConfiguration(analysis);
     displayGoogleMap(analysis);
-    
+
     displayMonthlyProduction(analysis);
     displaySeasonalVariation(analysis);
     displayShadingAnalysis(analysis);
-    
+    displayFinancialInsights(analysis);
+
     // CRITICAL: Add ROI button
     addROIButton();
 
@@ -426,41 +427,184 @@ function displaySeasonalVariation(analysis) {
 }
 
 function displayShadingAnalysis(analysis) {
-    if (!analysis.shadingAnalysis || !analysis.shadingAnalysis.hasShading) {
+    if (!analysis.shadingAnalysis) {
         console.log('No shading analysis data available');
         return;
     }
 
-    // Remove any existing shading section
     const existing = document.querySelector('.shading-section');
     if (existing) existing.remove();
 
     const shading = analysis.shadingAnalysis;
     const shadingDiv = document.createElement('div');
     shadingDiv.className = 'shading-section';
+
+    const peakHours = Array.isArray(shading.peakShadingHours) ? shading.peakShadingHours : [];
+    const hasPeakHours = peakHours.length > 0;
+
+    const hoursMarkup = hasPeakHours
+        ? `
+            <div class="shading-hours">
+                ${peakHours.map(hour => {
+                    const impactClass = toCssClass(hour.impact, 'minimal');
+                    return `
+                        <div class="shading-hour ${impactClass}">
+                            <div class="time-block">
+                                <span class="time">${hour.time}</span>
+                                <span class="percent">${formatPercent(hour.averageShadePercent)}</span>
+                            </div>
+                            <span class="impact ${impactClass}">${hour.impact}</span>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `
+        : `<p class="no-shade">Google Solar API did not flag any time periods with meaningful shading losses.</p>`;
+
     shadingDiv.innerHTML = `
         <h3>🌳 Shading Analysis</h3>
         <div class="shading-card">
-            <h4>Time-of-Day Impact:</h4>
-            <div class="shading-hours">
-                ${shading.peakShadingHours.map(hour => `
-                    <div class="shading-hour ${hour.impact.toLowerCase()}">
-                        <span class="time">${hour.time}</span>
-                        <span class="impact ${hour.impact.toLowerCase()}">${hour.impact}</span>
-                    </div>
-                `).join('')}
+            <div class="shading-summary">
+                <div class="shading-metric">
+                    <span class="label">Average daily shading</span>
+                    <span class="value">${formatPercent(shading.overallShadePercent)}</span>
+                </div>
+                <div class="shading-metric">
+                    <span class="label">Overall impact</span>
+                    <span class="value impact ${toCssClass(shading.impactLevel, 'minimal')}">${shading.impactLevel || 'Minimal'}</span>
+                </div>
             </div>
-            <h4>Recommendations:</h4>
+            <h4>Time-of-day impact</h4>
+            ${hoursMarkup}
+            <h4>Recommendations</h4>
             <ul class="shading-recommendations">
-                ${shading.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                ${Array.isArray(shading.recommendations) && shading.recommendations.length
+                    ? shading.recommendations.map(rec => `<li>${rec}</li>`).join('')
+                    : '<li>No shading mitigation steps required at this time.</li>'}
             </ul>
         </div>
     `;
 
     const seasonalSection = document.querySelector('.seasonal-section');
-    if (seasonalSection) {
-        seasonalSection.insertAdjacentElement('afterend', shadingDiv);
+    const anchor = seasonalSection || document.querySelector('.monthly-production-section') || document.getElementById('configurationCard');
+    if (anchor) {
+        anchor.insertAdjacentElement('afterend', shadingDiv);
     }
+}
+
+function displayFinancialInsights(analysis) {
+    const container = document.getElementById('financialSection');
+    if (!container) {
+        return;
+    }
+
+    const financial = analysis.financialAnalysis;
+
+    if (!financial || !financial.bestCase) {
+        container.style.display = 'none';
+        container.innerHTML = '';
+        return;
+    }
+
+    const { bestCase, scenarios, summary } = financial;
+
+    const summaryItems = [
+        {
+            label: 'Solar offset',
+            value: formatPercent(bestCase.solarOffsetPercent),
+            sub: 'Portion of your annual usage covered'
+        },
+        {
+            label: 'Lifetime savings',
+            value: formatCurrency(bestCase.lifetimeSavings),
+            sub: 'Compared to staying 100% on grid power'
+        },
+        {
+            label: 'Payback period',
+            value: bestCase.paybackYears ? `${bestCase.paybackYears} years` : '—',
+            sub: 'Estimated break-even from Google Solar API'
+        },
+        {
+            label: 'Year 1 production',
+            value: bestCase.annualProductionKwh ? `${bestCase.annualProductionKwh.toLocaleString()} kWh` : '—',
+            sub: 'Modeled AC output for the first year'
+        }
+    ];
+
+    const incentives = [
+        { label: 'Federal incentive', value: bestCase.federalIncentive },
+        { label: 'State incentive', value: bestCase.stateIncentive },
+        { label: 'Utility rebate', value: bestCase.utilityRebate },
+        { label: 'SREC value', value: bestCase.lifetimeSrecTotal }
+    ].filter(item => typeof item.value === 'number' && !isNaN(item.value) && item.value !== 0);
+
+    const scenarioRows = Array.isArray(scenarios) && scenarios.length
+        ? scenarios.map((scenario, index) => {
+            const scenarioLabel = scenario === bestCase
+                ? 'Best fit'
+                : `Option ${index + 1}`;
+
+            return `
+                <div class="scenario-row ${scenario === bestCase ? 'best' : ''}">
+                    <div class="scenario-col label" data-label="Scenario">${scenarioLabel}</div>
+                    <div class="scenario-col" data-label="Solar offset">${formatPercent(scenario.solarOffsetPercent)}</div>
+                    <div class="scenario-col" data-label="Lifetime savings">${formatCurrency(scenario.lifetimeSavings)}</div>
+                    <div class="scenario-col" data-label="Payback">${scenario.paybackYears ? `${scenario.paybackYears} yrs` : '—'}</div>
+                    <div class="scenario-col" data-label="Year 1 production">${scenario.annualProductionKwh ? `${scenario.annualProductionKwh.toLocaleString()} kWh` : '—'}</div>
+                    <div class="scenario-col" data-label="Net metering">${formatBoolean(scenario.netMeteringAllowed)}</div>
+                </div>
+            `;
+        }).join('')
+        : '';
+
+    const contextParts = [];
+    if (summary?.scenariosConsidered) {
+        contextParts.push(`${summary.scenariosConsidered} configuration${summary.scenariosConsidered > 1 ? 's' : ''}`);
+    }
+    if (typeof summary?.averageOffsetPercent === 'number') {
+        contextParts.push(`average offset ${formatPercent(summary.averageOffsetPercent)}`);
+    }
+    if (typeof summary?.typicalPaybackYears === 'number') {
+        contextParts.push(`typical payback ${summary.typicalPaybackYears} yrs`);
+    }
+
+    container.style.display = 'block';
+    container.innerHTML = `
+        <h3>💰 Financial Insights from Google Solar API</h3>
+        <div class="financial-summary">
+            ${summaryItems.map(item => `
+                <div class="financial-summary-item">
+                    <span class="label">${item.label}</span>
+                    <span class="value">${item.value}</span>
+                    <span class="sub">${item.sub}</span>
+                </div>
+            `).join('')}
+        </div>
+        ${contextParts.length ? `<p class="financial-context">Google Solar API simulated ${contextParts.join(', ')} to prepare these estimates.</p>` : ''}
+        ${incentives.length ? `
+            <div class="financial-incentives">
+                <h4>Available incentives factored into the model</h4>
+                <ul>
+                    ${incentives.map(item => `<li><span>${item.label}</span><span>${formatCurrency(item.value)}</span></li>`).join('')}
+                </ul>
+            </div>
+        ` : ''}
+        ${scenarioRows ? `
+            <div class="financial-scenarios">
+                <h4>Modeled system configurations</h4>
+                <div class="scenario-row header">
+                    <div class="scenario-col label">Scenario</div>
+                    <div class="scenario-col">Solar offset</div>
+                    <div class="scenario-col">Lifetime savings</div>
+                    <div class="scenario-col">Payback</div>
+                    <div class="scenario-col">Year 1 production</div>
+                    <div class="scenario-col">Net metering</div>
+                </div>
+                ${scenarioRows}
+            </div>
+        ` : ''}
+        <p class="financial-footnote">Figures come directly from Google Solar API's financialAnalyses data and are estimates for evaluation purposes.</p>
+    `;
 }
 
 // FIX #2: Robust ROI Button Addition
@@ -545,13 +689,58 @@ function startOver() {
     document.getElementById('addressInput').value = '';
     document.getElementById('addressInput').focus();
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    
+
     const dynamicSections = document.querySelectorAll('.monthly-production-section, .seasonal-section, .shading-section');
     dynamicSections.forEach(section => section.remove());
-    
+
+    const financialSection = document.getElementById('financialSection');
+    if (financialSection) {
+        financialSection.style.display = 'none';
+        financialSection.innerHTML = '';
+    }
+
     // Remove ROI button
     const roiButton = document.getElementById('roiButton');
     if (roiButton && roiButton.parentElement) {
         roiButton.parentElement.remove();
     }
+}
+
+function formatCurrency(value) {
+    if (typeof value !== 'number' || isNaN(value)) {
+        return '—';
+    }
+
+    return value.toLocaleString(undefined, {
+        style: 'currency',
+        currency: 'USD',
+        maximumFractionDigits: 0
+    });
+}
+
+function formatPercent(value) {
+    if (typeof value !== 'number' || isNaN(value)) {
+        return '—';
+    }
+
+    const formatter = new Intl.NumberFormat(undefined, {
+        minimumFractionDigits: value < 10 ? 1 : 0,
+        maximumFractionDigits: value < 10 ? 1 : 0
+    });
+
+    return `${formatter.format(value)}%`;
+}
+
+function formatBoolean(value) {
+    if (value === true) return 'Yes';
+    if (value === false) return 'No';
+    return '—';
+}
+
+function toCssClass(value, fallback = 'default') {
+    if (!value || typeof value !== 'string') {
+        return fallback;
+    }
+
+    return value.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 }
