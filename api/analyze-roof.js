@@ -3,17 +3,14 @@ const SolarAnalyzer = require('../lib/SolarAnalyzer');
 const RoofAnalyzer = require('../lib/RoofAnalyzer');
 
 module.exports = async (req, res) => {
-    // Enable CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-    // Handle preflight
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
     }
 
-    // Only allow POST
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
@@ -27,11 +24,9 @@ module.exports = async (req, res) => {
             });
         }
 
-        // Initialize analyzers
         const solarAnalyzer = new SolarAnalyzer(process.env.GOOGLE_SOLAR_API_KEY);
         const roofAnalyzer = new RoofAnalyzer();
 
-        // Get coordinates if not provided
         let location;
         if (!lat || !lng) {
             location = await solarAnalyzer.geocodeAddress(address);
@@ -41,28 +36,30 @@ module.exports = async (req, res) => {
 
         console.log(`Analyzing: ${location.formattedAddress}`);
 
-        // Get solar data
         const solarData = await solarAnalyzer.getBuildingInsights(
             location.lat, 
             location.lng
         );
 
-        // Analyze roof segments
+        console.log('Fetching enhanced data layers...');
+        const dataLayers = await solarAnalyzer.getAllDataLayers(solarData.name);
+
         const segments = roofAnalyzer.analyzeRoofSegments(solarData);
+        const recommendations = roofAnalyzer.generateRecommendations(segments, location.formattedAddress);
+        const monthlyProduction = roofAnalyzer.analyzeMonthlyProduction(solarData, dataLayers.monthlyFlux);
+        const shadingAnalysis = roofAnalyzer.analyzeShadingImpact(dataLayers.hourlyShade);
+        const seasonalVariation = roofAnalyzer.analyzeSeasonalVariation(monthlyProduction);
 
-        // Generate recommendations
-        const recommendations = roofAnalyzer.generateRecommendations(
-            segments, 
-            location.formattedAddress
-        );
-
-        // Compile response
         const response = {
             success: true,
             address: location.formattedAddress,
             location: {
                 lat: location.lat,
-                lng: location.lng
+                lng: location.lng,
+                zipCode: location.zipCode,
+                city: location.city,
+                state: location.state,
+                county: location.county
             },
             buildingInsights: {
                 name: solarData.name,
@@ -77,6 +74,14 @@ module.exports = async (req, res) => {
                 maxArrayAreaMeters2: solarData.solarPotential.maxArrayAreaMeters2,
                 maxArrayAreaSqFt: Math.round(solarData.solarPotential.maxArrayAreaMeters2 * 10.764),
                 maxSunshineHoursPerYear: solarData.solarPotential.maxSunshineHoursPerYear
+            },
+            monthlyProduction: monthlyProduction,
+            shadingAnalysis: shadingAnalysis,
+            seasonalVariation: seasonalVariation,
+            dataLayersAvailable: {
+                monthlyFlux: !!dataLayers.monthlyFlux,
+                annualFlux: !!dataLayers.annualFlux,
+                hourlyShade: !!dataLayers.hourlyShade
             },
             timestamp: new Date().toISOString()
         };

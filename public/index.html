@@ -3,20 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solar Roof Analyzer - See Your Potential</title>
+    <title>Solar Roof Analyzer - AI-Powered Solar Analysis</title>
     <link rel="stylesheet" href="styles.css">
-    </head>
+</head>
 <body>
     <div class="container">
+        <!-- Header -->
         <header class="header">
             <h1>☀️ Solar Roof Analyzer</h1>
-            <p class="subtitle">Discover your roof's solar potential in seconds</p>
+            <p class="subtitle">Discover your roof's solar potential in seconds using AI and satellite imagery</p>
         </header>
 
+        <!-- Address Input Section -->
         <section class="input-section" id="inputSection">
             <div class="input-card">
                 <h2>Enter Your Address</h2>
-                <p>We'll analyze your roof using Google Solar AI and satellite imagery.</p>
+                <p>We'll analyze your roof using Google's satellite imagery and AI</p>
                 
                 <form id="addressForm">
                     <div class="form-group">
@@ -38,6 +40,7 @@
             </div>
         </section>
 
+        <!-- Loading State -->
         <section class="loading-section" id="loadingSection" style="display: none;">
             <div class="loading-card">
                 <div class="spinner"></div>
@@ -46,43 +49,70 @@
             </div>
         </section>
 
+        <!-- Results Section -->
         <section class="results-section" id="resultsSection" style="display: none;">
+            <!-- Address Header -->
             <div class="results-header">
                 <h2 id="resultAddress">Roof Analysis Results</h2>
                 <button class="btn-secondary" onclick="startOver()">Analyze Another Address</button>
             </div>
 
+            <!-- Interactive Map -->
             <div class="map-container">
-                <h3>Optimal Panel Placement</h3>
+                <h3>📍 Satellite View of Your Property</h3>
                 <div id="map" class="map"></div>
                 <p class="imagery-date">Imagery Date: <span id="imageryDate"></span></p>
             </div>
 
+            <!-- Summary Stats -->
+            <div class="summary-grid" id="summaryGrid">
+                <!-- Populated by JavaScript -->
+            </div>
+
+            <!-- Primary Recommendation -->
             <div class="recommendation-card primary" id="primaryRecommendation">
-                <h3>🎯 Our Recommendation</h3>
+                <h3>🎯 Our Expert Recommendation</h3>
                 <div id="primaryRecText"></div>
             </div>
-            
-            <div class="summary-grid" id="summaryGrid"></div>
 
+            <!-- Roof Segments -->
             <div class="segments-container">
-                <h3>Detailed Roof Segment Analysis</h3>
-                <div class="segments-grid" id="segmentsGrid"></div>
+                <h3>🏠 Detailed Roof Segment Analysis</h3>
+                <div class="segments-grid" id="segmentsGrid">
+                    <!-- Populated by JavaScript -->
+                </div>
             </div>
 
+            <!-- Optimal Configuration -->
             <div class="configuration-card" id="configurationCard">
-                <h3>Optimal System Design</h3>
+                <h3>⚡ Optimal Solar System Design</h3>
                 <div id="configurationContent"></div>
             </div>
 
+            <!-- CTA Section -->
             <div class="cta-section">
                 <h3>Ready to Go Solar?</h3>
-                <p>Get custom quotes from local installers based on this analysis</p>
-                <button class="btn-primary btn-large">Get Free Quotes</button>
+                <p>Get custom quotes from local installers based on this professional analysis</p>
+                <button class="btn-primary btn-large">Get Free Quotes from Local Installers</button>
             </div>
         </section>
     </div>
 
+    <footer class="footer">
+        <p>Powered by Google Solar API • Built by Steve Winfield</p>
+    </footer>
+
+    <!-- Google Maps API with callback -->
+    <script>
+        function initMap() {
+            console.log('Google Maps API loaded successfully');
+        }
+    </script>
+    <script async defer
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC2k7fZSI2k0nx4ZSZ-pjP1HRCIXn-VD0w&libraries=geometry&callback=initMap">
+    </script>
+    
+    <!-- Main application script - ONLY ONCE! -->
     <script src="app.js"></script>
 </body>
 </html>

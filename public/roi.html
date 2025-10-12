@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solar ROI Calculator</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="roi-styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>💰 Solar ROI Calculator</h1>
+            <p class="subtitle">Calculate your return on investment with custom scenarios</p>
+        </header>
+
+        <!-- Back Button -->
+        <div class="back-nav">
+            <button onclick="goBackToAnalysis()" class="btn-secondary">← Back to Analysis</button>
+        </div>
+
+        <!-- ROI Container -->
+        <div class="roi-container">
+            
+            <!-- Step 1: Segment Selection -->
+            <section class="roi-section segment-selection">
+                <h2>📍 Step 1: Select Roof Segments</h2>
+                <p class="section-description">Choose which roof segments to include in your solar system</p>
+                
+                <div id="segmentsList" class="segments-checklist">
+                    <!-- Populated by JavaScript -->
+                </div>
+
+                <div class="selection-summary">
+                    <div class="summary-item">
+                        <span class="label">Selected Panels:</span>
+                        <span class="value" id="selectedPanels">0</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="label">System Size:</span>
+                        <span class="value" id="selectedSystemSize">0 kW</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="label">Annual Production:</span>
+                        <span class="value" id="selectedProduction">0 kWh</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Step 2: Customize Assumptions -->
+            <section class="roi-section assumptions-section">
+                <h2>⚙️ Step 2: Customize Your Numbers (Optional)</h2>
+                <p class="section-description">These are smart defaults based on your location. Adjust if you have better information.</p>
+                
+                <div class="assumptions-grid">
+                    <!-- System Costs -->
+                    <div class="assumption-group">
+                        <h3>System Costs</h3>
+                        <div class="input-row">
+                            <label for="costPerWatt">Cost per Watt:</label>
+                            <div class="input-with-unit">
+                                <span class="unit-prefix">$</span>
+                                <input type="number" id="costPerWatt" step="0.10" min="2.50" max="5.00">
+                                <span class="unit-suffix">/watt</span>
+                            </div>
+                        </div>
+                        <div class="input-row">
+                            <label for="federalITC">Federal Tax Credit:</label>
+                            <div class="input-with-unit">
+                                <input type="number" id="federalITC" step="1" min="0" max="50">
+                                <span class="unit-suffix">%</span>
+                            </div>
+                        </div>
+                        <div class="input-row">
+                            <label for="localRebate">Local Rebate:</label>
+                            <div class="input-with-unit">
+                                <span class="unit-prefix">$</span>
+                                <input type="number" id="localRebate" step="100" min="0">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Energy Costs -->
+                    <div class="assumption-group">
+                        <h3>Energy Costs</h3>
+                        <div class="input-row">
+                            <label for="currentMonthlyBill">Current Monthly Bill:</label>
+                            <div class="input-with-unit">
+                                <span class="unit-prefix">$</span>
+                                <input type="number" id="currentMonthlyBill" step="10" min="0">
+                            </div>
+                        </div>
+                        <div class="input-row">
+                            <label for="energyRate">Energy Rate:</label>
+                            <div class="input-with-unit">
+                                <span class="unit-prefix">$</span>
+                                <input type="number" id="energyRate" step="0.001" min="0.05" max="0.50">
+                                <span class="unit-suffix">/kWh</span>
+                            </div>
+                            <small class="input-hint" id="energyRateHint"></small>
+                        </div>
+                        <div class="input-row">
+                            <label for="annualRateIncrease">Annual Rate Increase:</label>
+                            <div class="input-with-unit">
+                                <input type="number" id="annualRateIncrease" step="0.1" min="0" max="10">
+                                <span class="unit-suffix">%</span>
+                            </div>
+                            <small class="input-hint" id="rateIncreaseHint"></small>
+                        </div>
+                    </div>
+
+                    <!-- System Performance -->
+                    <div class="assumption-group">
+                        <h3>System Performance</h3>
+                        <div class="input-row">
+                            <label for="panelDegradation">Panel Degradation:</label>
+                            <div class="input-with-unit">
+                                <input type="number" id="panelDegradation" step="0.1" min="0" max="2">
+                                <span class="unit-suffix">% per year</span>
+                            </div>
+                        </div>
+                        <div class="input-row">
+                            <label for="annualMaintenance">Annual Maintenance:</label>
+                            <div class="input-with-unit">
+                                <span class="unit-prefix">$</span>
+                                <input type="number" id="annualMaintenance" step="50" min="0">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Home Value -->
+                    <div class="assumption-group">
+                        <h3>Home Value (Optional)</h3>
+                        <div class="input-row">
+                            <label for="currentHomeValue">Current Home Value:</label>
+                            <div class="input-with-unit">
+                                <span class="unit-prefix">$</span>
+                                <input type="number" id="currentHomeValue" step="10000" min="0" placeholder="Optional">
+                            </div>
+                        </div>
+                        <div class="input-row">
+                            <label for="homeValueMultiplier">Value Added per Watt:</label>
+                            <div class="input-with-unit">
+                                <span class="unit-prefix">$</span>
+                                <input type="number" id="homeValueMultiplier" step="1" min="10" max="30">
+                                <span class="unit-suffix">/watt</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="reset-defaults">
+                    <button onclick="resetToDefaults()" class="btn-secondary">Reset to Defaults</button>
+                </div>
+            </section>
+
+            <!-- Step 3: Financing Options -->
+            <section class="roi-section financing-section">
+                <h2>💳 Step 3: Choose Financing</h2>
+                <p class="section-description">Select how you plan to pay for your solar system</p>
+                
+                <div class="financing-options">
+                    <label class="financing-option">
+                        <input type="radio" name="financing" value="cash" onchange="updateFinancing()">
+                        <div class="option-card">
+                            <div class="option-header">
+                                <span class="option-name">Cash Purchase</span>
+                            </div>
+                            <div class="option-details">
+                                <div class="option-payment">
+                                    <span class="payment-amount" id="cashAmount">$0</span>
+                                    <span class="payment-label">upfront</span>
+                                </div>
+                                <div class="option-description">
+                                    No interest, immediate savings
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+
+                    <label class="financing-option">
+                        <input type="radio" name="financing" value="loan10" onchange="updateFinancing()" checked>
+                        <div class="option-card">
+                            <div class="option-header">
+                                <span class="option-name">10-Year Loan</span>
+                                <span class="option-rate">6.99% APR</span>
+                            </div>
+                            <div class="option-details">
+                                <div class="option-payment">
+                                    <span class="payment-amount" id="loan10Amount">$0</span>
+                                    <span class="payment-label">/month</span>
+                                </div>
+                                <div class="option-description">
+                                    Higher payment, less interest
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+
+                    <label class="financing-option">
+                        <input type="radio" name="financing" value="loan15" onchange="updateFinancing()">
+                        <div class="option-card">
+                            <div class="option-header">
+                                <span class="option-name">15-Year Loan</span>
+                                <span class="option-rate">7.99% APR</span>
+                            </div>
+                            <div class="option-details">
+                                <div class="option-payment">
+                                    <span class="payment-amount" id="loan15Amount">$0</span>
+                                    <span class="payment-label">/month</span>
+                                </div>
+                                <div class="option-description">
+                                    Balanced payment and interest
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+
+                    <label class="financing-option">
+                        <input type="radio" name="financing" value="loan20" onchange="updateFinancing()">
+                        <div class="option-card">
+                            <div class="option-header">
+                                <span class="option-name">20-Year Loan</span>
+                                <span class="option-rate">8.99% APR</span>
+                            </div>
+                            <div class="option-details">
+                                <div class="option-payment">
+                                    <span class="payment-amount" id="loan20Amount">$0</span>
+                                    <span class="payment-label">/month</span>
+                                </div>
+                                <div class="option-description">
+                                    Lower payment, more interest
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+                </div>
+
+                <div class="custom-loan">
+                    <h4>Custom Loan Terms</h4>
+                    <div class="input-row">
+                        <label for="customLoanRate">Interest Rate:</label>
+                        <div class="input-with-unit">
+                            <input type="number" id="customLoanRate" step="0.1" min="0" max="20">
+                            <span class="unit-suffix">%</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Calculate Button -->
+            <div class="calculate-action">
+                <button onclick="calculateROI()" class="btn-primary btn-large">
+                    Calculate My ROI
+                </button>
+            </div>
+
+            <!-- Results Section -->
+            <section class="roi-section results-section" id="roiResults" style="display: none;">
+                
+                <!-- Monthly Breakdown -->
+                <div class="monthly-breakdown-card">
+                    <h2>💵 Your Monthly Costs Breakdown</h2>
+                    
+                    <div class="breakdown-period">
+                        <h3 id="duringLoanTitle">Years 1-10 (During Loan)</h3>
+                        <div class="breakdown-table">
+                            <div class="breakdown-row">
+                                <span class="breakdown-label">Monthly loan payment:</span>
+                                <span class="breakdown-value" id="duringLoanPayment">$0</span>
+                            </div>
+                            <div class="breakdown-row">
+                                <span class="breakdown-label">+ Average electric bill:</span>
+                                <span class="breakdown-value" id="duringElectricBill">$0</span>
+                            </div>
+                            <div class="breakdown-row savings">
+                                <span class="breakdown-label">- Solar production savings:</span>
+                                <span class="breakdown-value" id="duringSolarSavings">$0</span>
+                            </div>
+                            <div class="breakdown-row total">
+                                <span class="breakdown-label">= Net monthly cost:</span>
+                                <span class="breakdown-value" id="duringNetCost">$0</span>
+                            </div>
+                        </div>
+                        <div class="breakdown-comparison">
+                            <div class="comparison-item">
+                                <span class="label">vs. No Solar:</span>
+                                <span class="value" id="duringVsNoSolar">$0/month</span>
+                            </div>
+                            <div class="comparison-item highlight">
+                                <span class="label">Extra cost for solar:</span>
+                                <span class="value" id="duringExtraCost">$0/month</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="breakdown-period">
+                        <h3 id="afterLoanTitle">Years 11-25 (After Loan)</h3>
+                        <div class="breakdown-table">
+                            <div class="breakdown-row">
+                                <span class="breakdown-label">Monthly loan payment:</span>
+                                <span class="breakdown-value">$0</span>
+                            </div>
+                            <div class="breakdown-row">
+                                <span class="breakdown-label">+ Average electric bill:</span>
+                                <span class="breakdown-value" id="afterElectricBill">$0</span>
+                            </div>
+                            <div class="breakdown-row savings">
+                                <span class="breakdown-label">- Solar production savings:</span>
+                                <span class="breakdown-value" id="afterSolarSavings">$0</span>
+                            </div>
+                            <div class="breakdown-row total">
+                                <span class="breakdown-label">= Net monthly cost:</span>
+                                <span class="breakdown-value" id="afterNetCost">$0</span>
+                            </div>
+                        </div>
+                        <div class="breakdown-comparison">
+                            <div class="comparison-item">
+                                <span class="label">vs. No Solar:</span>
+                                <span class="value" id="afterVsNoSolar">$0/month</span>
+                            </div>
+                            <div class="comparison-item highlight success">
+                                <span class="label">Monthly savings:</span>
+                                <span class="value" id="afterMonthlySavings">$0/month</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="key-insight">
+                        <span class="insight-icon">💡</span>
+                        <span class="insight-text" id="keyInsight">Loading...</span>
+                    </div>
+                </div>
+
+                <!-- 25-Year Summary -->
+                <div class="summary-card">
+                    <h2>📊 25-Year Financial Summary</h2>
+                    
+                    <div class="summary-grid-roi">
+                        <div class="summary-section">
+                            <h4>Investment</h4>
+                            <div class="summary-line">
+                                <span>Total System Cost:</span>
+                                <span id="grossCost">$0</span>
+                            </div>
+                            <div class="summary-line credit">
+                                <span>Federal Tax Credit (30%):</span>
+                                <span id="federalCredit">$0</span>
+                            </div>
+                            <div class="summary-line credit" id="stateIncentiveLine" style="display: none;">
+                                <span id="stateIncentiveLabel">State Incentive:</span>
+                                <span id="stateIncentiveValue">$0</span>
+                            </div>
+                            <div class="summary-line total">
+                                <span>Net Investment:</span>
+                                <span id="netCost">$0</span>
+                            </div>
+                        </div>
+
+                        <div class="summary-section">
+                            <h4>Returns</h4>
+                            <div class="summary-line positive">
+                                <span>Total Energy Savings:</span>
+                                <span id="totalSavings">$0</span>
+                            </div>
+                            <div class="summary-line negative">
+                                <span>Total Loan Interest:</span>
+                                <span id="totalInterest">$0</span>
+                            </div>
+                            <div class="summary-line negative">
+                                <span>Total Maintenance:</span>
+                                <span id="totalMaintenance">$0</span>
+                            </div>
+                            <div class="summary-line total positive">
+                                <span>Net 25-Year Profit:</span>
+                                <span id="netProfit">$0</span>
+                            </div>
+                        </div>
+
+                        <div class="summary-section">
+                            <h4>Key Metrics</h4>
+                            <div class="summary-line">
+                                <span>Payback Period:</span>
+                                <span id="paybackPeriod">0 years</span>
+                            </div>
+                            <div class="summary-line">
+                                <span>ROI:</span>
+                                <span id="roiPercentage">0%</span>
+                            </div>
+                            <div class="summary-line positive">
+                                <span>Home Value Increase:</span>
+                                <span id="homeValueIncrease">$0</span>
+                            </div>
+                            <div class="summary-line">
+                                <span>CO₂ Offset:</span>
+                                <span id="carbonOffset">0 tons</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="results-actions">
+                    <button onclick="window.print()" class="btn-secondary">
+                        🖨️ Print Report
+                    </button>
+                    <button onclick="shareResults()" class="btn-secondary">
+                        📤 Share Results
+                    </button>
+                    <button onclick="goBackToAnalysis()" class="btn-primary">
+                        ← Back to Analysis
+                    </button>
+                </div>
+            </section>
+
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>Powered by Google Solar API • Built by Steve Winfield</p>
+    </footer>
+
+    <script src="roi.js"></script>
+</body>
+</html>

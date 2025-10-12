@@ -1,8 +1,5 @@
 // api/data-layer.js
-const SolarAnalyzer = require('../lib/SolarAnalyzer');
-
 module.exports = async (req, res) => {
-    // Enable CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -17,16 +14,17 @@ module.exports = async (req, res) => {
 
     try {
         const { buildingName, layerType } = req.query;
-        
         if (!buildingName || !layerType) {
-            return res.status(400).json({ 
-                error: 'buildingName and layerType are required' 
+            return res.status(400).json({
+                error: 'buildingName and layerType are required'
             });
         }
 
+        const SolarAnalyzer = require('../lib/SolarAnalyzer');
+        console.log('Lazy-loaded SolarAnalyzer in data-layer:', SolarAnalyzer);
         const analyzer = new SolarAnalyzer(process.env.GOOGLE_SOLAR_API_KEY);
         const dataLayer = await analyzer.getDataLayer(buildingName, layerType);
-        
+
         res.status(200).json(dataLayer);
     } catch (error) {
         console.error('Data layer error:', error);
