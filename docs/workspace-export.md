@@ -2,6 +2,9 @@
 
 This guide summarizes two common ways to move the code that lives in this Codespace-style workspace to another environment: pushing to GitHub and downloading to your computer.
 
+> **Why can’t the assistant edit the copy on your personal machine?**
+> The container you are interacting with is isolated from your PC, Google Drive, or any other storage. Even though the assistant has write access inside this workspace, it cannot reach outside of it. To use the updated files elsewhere you must explicitly export them using one of the methods below (or by pushing to GitHub). Until you do, the edits remain inside `/workspace/solar-panels` only.
+
 ## 1. Push directly to GitHub
 
 1. Create an empty repository in your GitHub account (or decide which existing repo you want to use). Copy its **HTTPS** URL — it will look like `https://github.com/<user>/<repo>.git`.
@@ -12,6 +15,14 @@ This guide summarizes two common ways to move the code that lives in this Codesp
    ```
    Replace the URL with your own. If a remote named `origin` already exists, replace the `add` command with:
    ```bash
+2. Inside the workspace terminal, confirm the remote URL:
+   ```bash
+   git remote -v
+   ```
+   If you do not see the repository you want, add or update the remote:
+   ```bash
+   git remote add origin https://github.com/<user>/<repo>.git
+   # ...or, if origin already exists
    git remote set-url origin https://github.com/<user>/<repo>.git
    ```
 3. Stage and commit your work if you have not already:
@@ -20,12 +31,29 @@ This guide summarizes two common ways to move the code that lives in this Codesp
    git commit -m "Describe your changes"
    ```
 4. Push the branch up to GitHub:
+4. Push the branch up to GitHub (this also establishes the tracking relationship so future `git pull` commands know which remote branch to use):
    ```bash
    git push -u origin work
    ```
    Replace `work` with whatever branch name you are using. Git will prompt for your GitHub credentials or personal access token the first time you push from this environment.
 
 Once the push finishes, your code is on GitHub. You can continue collaborating there or open a pull request as usual.
+
+   If you already pushed without the `-u` flag or you cloned the workspace without an upstream branch, you can establish the link later with:
+   ```bash
+   git branch --set-upstream-to=origin/<branch> <branch>
+   ```
+   Replace `<branch>` with the name of your local branch (for example, `main`). After setting the upstream, `git pull` and `git push` will default to the correct remote branch.
+
+Once the push finishes, your code is on GitHub. You can continue collaborating there or open a pull request as usual.
+
+### Instant download link (after pushing)
+
+GitHub automatically exposes a ZIP archive for every branch. As soon as your latest changes are pushed, you (or anyone you share it with) can click this direct download link:
+
+- [`https://codeload.github.com/stevewinfieldtx/solar-panels/zip/refs/heads/main`](https://codeload.github.com/stevewinfieldtx/solar-panels/zip/refs/heads/main)
+
+If you are working on a different branch, change the trailing `main` segment to match the branch name (for example `work` or `feature/roi-fixes`). The browser will immediately start downloading the ZIP file containing the entire repository.
 
 ## 2. Download files to your local computer
 
