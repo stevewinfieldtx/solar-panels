@@ -269,6 +269,7 @@ module.exports = async (req, res) => {
             federalITC: normalizedFederalITC,
             stateTaxCredit: stateIncentive?.stateTaxCredit ?? 0,
             maxStateCredit: stateIncentive?.maxCredit ?? null,
+            localRebate: normalizedLocalRebate,
             localRebate: appliedLocalRebate,
             annualRateIncrease: normalizedRateIncrease ?? growthData.rate,
             panelDegradation: normalizedPanelDegradation ?? ROIConfig.system.panelDegradation,
@@ -278,6 +279,7 @@ module.exports = async (req, res) => {
             currentHomeValue: normalizedHomeValue,
             financingType: userInputs.financingType || 'loan10',
             loanRate: normalizedLoanRate,
+            loanTerm: normalizedLoanTerm
             loanTerm: normalizedLoanTerm,
             localRebateSource,
             shadeLossPercent: normalizedShadeLossPercent,
@@ -289,6 +291,14 @@ module.exports = async (req, res) => {
         const roiCalc = new ROICalculator();
         const roi = roiCalc.generateFullROI(
             parsedSystemSize,
+            parsedAnnualProduction,
+            energyRate.rate,
+            config
+        );
+
+        const monthlyBreakdown = roiCalc.calculateMonthlyBreakdown(
+            roi,
+            energyRate.rate,
             parsedAnnualProduction,
             energyRate.rate,
             config

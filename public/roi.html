@@ -397,6 +397,7 @@
                                 <span id="stateIncentiveValue">$0</span>
                             </div>
                             <div class="summary-line credit" id="localRebateLine" style="display: none;">
+                                <span>Local Rebate:</span>
                                 <span id="localRebateLabel">Local Rebate:</span>
                                 <span id="localRebateValue">$0</span>
                             </div>
@@ -448,6 +449,39 @@
                     </div>
                 </div>
 
+                <div class="decision-card" id="decisionScale" style="display: none;">
+                    <h2>🧮 Solar Purchase Score</h2>
+                    <p class="section-description">Nine-point scale showing how compelling this investment looks.</p>
+
+                    <div class="score-header">
+                        <div class="score-value" id="purchaseScoreValue">-</div>
+                        <div class="score-labels">
+                            <span id="purchaseScoreLabel">Waiting for results…</span>
+                            <small id="purchaseScoreSummary">Run the ROI calculator to see the score.</small>
+                        </div>
+                    </div>
+
+                    <div class="score-scale">
+                        <div class="scale-track">
+                            <span class="scale-step">1</span>
+                            <span class="scale-step">2</span>
+                            <span class="scale-step">3</span>
+                            <span class="scale-step">4</span>
+                            <span class="scale-step">5</span>
+                            <span class="scale-step">6</span>
+                            <span class="scale-step">7</span>
+                            <span class="scale-step">8</span>
+                            <span class="scale-step">9</span>
+                            <div class="scale-indicator" id="purchaseScoreIndicator"></div>
+                        </div>
+                        <div class="scale-legends">
+                            <span>Skip it</span>
+                            <span>Borderline</span>
+                            <span>Strong buy</span>
+                        </div>
+                    </div>
+
+                    <ul class="score-insights" id="purchaseScoreInsights"></ul>
                 <div class="home-value-card" id="homeValueCard" style="display: none;">
                     <h2>🏠 Home Value Impact</h2>
                     <div class="home-value-highlight">

@@ -594,6 +594,31 @@ function displayROIResults(data) {
     const paybackLine = payback
         ? `Payback hits in ${payback} years`
         : 'Payback is beyond 25 years at these settings';
+    document.getElementById('keyInsight').textContent =
+        `${paybackLine}. Solar production offsets ${formatCurrency(breakdown.monthlySavings)}/month today, ` +
+        `so once financing is gone you keep ${formatSignedCurrency(breakdown.afterLoan.monthlySavings)}/month. ` +
+        `During the loan your net change is ${formatSignedCurrency(breakdown.duringLoan.extraCostForSolar)}/month versus staying with the utility.`;
+
+    document.getElementById('grossCost').textContent = formatCurrency(roi.costs.grossCost);
+    document.getElementById('federalCredit').textContent = formatCredit(roi.costs.federalTaxCredit);
+    document.getElementById('netCost').textContent = formatCurrency(roi.costs.netCost);
+
+    const stateLine = document.getElementById('stateIncentiveLine');
+    if (roi.costs.stateTaxCredit > 0) {
+        stateLine.style.display = 'flex';
+        document.getElementById('stateIncentiveLabel').textContent =
+            (data.stateIncentive?.name || 'State Incentive') + ':';
+        document.getElementById('stateIncentiveValue').textContent = formatCredit(roi.costs.stateTaxCredit);
+    } else {
+        stateLine.style.display = 'none';
+    }
+
+    const localLine = document.getElementById('localRebateLine');
+    if (roi.costs.localRebate > 0) {
+        localLine.style.display = 'flex';
+        document.getElementById('localRebateValue').textContent = formatCredit(roi.costs.localRebate);
+    } else {
+        localLine.style.display = 'none';
     const keyInsight = document.getElementById('keyInsight');
     if (keyInsight) {
         let insightText = `${paybackLine}. Solar production offsets ${formatCurrency(breakdown.monthlySavings)}/month today, ` +
