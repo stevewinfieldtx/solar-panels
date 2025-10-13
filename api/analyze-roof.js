@@ -49,6 +49,7 @@ module.exports = async (req, res) => {
         const monthlyProduction = roofAnalyzer.analyzeMonthlyProduction(solarData, dataLayers.monthlyFlux);
         const shadingAnalysis = roofAnalyzer.analyzeShadingImpact(dataLayers.hourlyShade);
         const seasonalVariation = roofAnalyzer.analyzeSeasonalVariation(monthlyProduction);
+        const financialAnalysis = roofAnalyzer.extractFinancialInsights(solarData);
 
         const response = {
             success: true,
@@ -78,6 +79,7 @@ module.exports = async (req, res) => {
             monthlyProduction: monthlyProduction,
             shadingAnalysis: shadingAnalysis,
             seasonalVariation: seasonalVariation,
+            financialAnalysis: financialAnalysis,
             dataLayersAvailable: {
                 monthlyFlux: !!dataLayers.monthlyFlux,
                 annualFlux: !!dataLayers.annualFlux,

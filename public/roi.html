@@ -66,6 +66,15 @@
                             </div>
                         </div>
                         <div class="input-row">
+                            <label for="costPerPanel">Cost per Panel:</label>
+                            <div class="input-with-unit">
+                                <span class="unit-prefix">$</span>
+                                <input type="number" id="costPerPanel" step="25" min="500" max="2500">
+                                <span class="unit-suffix">per panel</span>
+                            </div>
+                            <small class="input-hint">Assuming standard 400W panels</small>
+                        </div>
+                        <div class="input-row">
                             <label for="federalITC">Federal Tax Credit:</label>
                             <div class="input-with-unit">
                                 <input type="number" id="federalITC" step="1" min="0" max="50">
@@ -258,7 +267,42 @@
 
             <!-- Results Section -->
             <section class="roi-section results-section" id="roiResults" style="display: none;">
-                
+
+                <div class="decision-card" id="decisionScale" style="display: none;">
+                    <h2>🧮 Solar Purchase Score</h2>
+                    <p class="section-description">Nine-point scale showing how compelling this investment looks.</p>
+
+                    <div class="score-header">
+                        <div class="score-value" id="purchaseScoreValue">-</div>
+                        <div class="score-labels">
+                            <span id="purchaseScoreLabel">Waiting for results…</span>
+                            <small id="purchaseScoreSummary">Run the ROI calculator to see the score.</small>
+                        </div>
+                    </div>
+
+                    <div class="score-scale">
+                        <div class="scale-track">
+                            <span class="scale-step">1</span>
+                            <span class="scale-step">2</span>
+                            <span class="scale-step">3</span>
+                            <span class="scale-step">4</span>
+                            <span class="scale-step">5</span>
+                            <span class="scale-step">6</span>
+                            <span class="scale-step">7</span>
+                            <span class="scale-step">8</span>
+                            <span class="scale-step">9</span>
+                            <div class="scale-indicator" id="purchaseScoreIndicator"></div>
+                        </div>
+                        <div class="scale-legends">
+                            <span>Skip it</span>
+                            <span>Borderline</span>
+                            <span>Strong buy</span>
+                        </div>
+                    </div>
+
+                    <ul class="score-insights" id="purchaseScoreInsights"></ul>
+                </div>
+
                 <!-- Monthly Breakdown -->
                 <div class="monthly-breakdown-card">
                     <h2>💵 Your Monthly Costs Breakdown</h2>
@@ -336,7 +380,7 @@
                 <!-- 25-Year Summary -->
                 <div class="summary-card">
                     <h2>📊 25-Year Financial Summary</h2>
-                    
+
                     <div class="summary-grid-roi">
                         <div class="summary-section">
                             <h4>Investment</h4>
@@ -351,6 +395,10 @@
                             <div class="summary-line credit" id="stateIncentiveLine" style="display: none;">
                                 <span id="stateIncentiveLabel">State Incentive:</span>
                                 <span id="stateIncentiveValue">$0</span>
+                            </div>
+                            <div class="summary-line credit" id="localRebateLine" style="display: none;">
+                                <span id="localRebateLabel">Local Rebate:</span>
+                                <span id="localRebateValue">$0</span>
                             </div>
                             <div class="summary-line total">
                                 <span>Net Investment:</span>
@@ -378,7 +426,7 @@
                             </div>
                         </div>
 
-                        <div class="summary-section">
+                    <div class="summary-section">
                             <h4>Key Metrics</h4>
                             <div class="summary-line">
                                 <span>Payback Period:</span>
@@ -398,6 +446,63 @@
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <div class="home-value-card" id="homeValueCard" style="display: none;">
+                    <h2>🏠 Home Value Impact</h2>
+                    <div class="home-value-highlight">
+                        <span class="home-value-amount" id="homeValueHeadline">$0</span>
+                        <span class="home-value-subtitle">Estimated increase to property value</span>
+                    </div>
+                    <ul class="home-value-insights" id="homeValueInsights"></ul>
+                </div>
+
+                <div class="shading-impact-card" id="shadingCard" style="display: none;">
+                    <h2>🌳 Shade &amp; Tree Impact</h2>
+                    <div class="shade-highlight">
+                        <div class="shade-headline" id="shadeHeadline">Loading shading insights…</div>
+                        <p class="shade-subheadline" id="shadeSubheadline"></p>
+                    </div>
+
+                    <div class="shade-metrics">
+                        <div class="shade-metric">
+                            <span class="metric-label">Estimated production loss</span>
+                            <span class="metric-value" id="shadeLossValue">—</span>
+                        </div>
+                        <div class="shade-metric">
+                            <span class="metric-label">Energy lost to shade</span>
+                            <span class="metric-value" id="shadeLostKwh">—</span>
+                        </div>
+                        <div class="shade-metric">
+                            <span class="metric-label">Adjusted annual production</span>
+                            <span class="metric-value" id="shadeAdjustedProduction">—</span>
+                        </div>
+                    </div>
+
+                    <div class="shade-peaks" id="shadePeaks"></div>
+
+                    <div class="shade-recommendations-section">
+                        <h4>What to do next</h4>
+                        <ul class="shade-recommendations" id="shadeRecommendations"></ul>
+                    </div>
+
+                    <p class="shade-note" id="shadeSourceNote"></p>
+                </div>
+
+                <div class="incentives-card" id="incentivesCard" style="display: none;">
+                    <h2>🎁 Incentives &amp; Rebates</h2>
+                    <p class="section-description" id="incentivesIntro"></p>
+                    <div class="incentive-columns">
+                        <div class="incentive-column">
+                            <h3>Applied Automatically</h3>
+                            <ul class="incentive-list" id="appliedIncentivesList"></ul>
+                        </div>
+                        <div class="incentive-column">
+                            <h3>Still Worth Exploring</h3>
+                            <ul class="incentive-list" id="availableIncentivesList"></ul>
+                        </div>
+                    </div>
+                    <p class="incentive-footnote" id="incentiveFootnote"></p>
                 </div>
 
                 <!-- Action Buttons -->
