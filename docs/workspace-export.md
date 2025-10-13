@@ -9,6 +9,12 @@ This guide summarizes two common ways to move the code that lives in this Codesp
 
 1. Create an empty repository in your GitHub account (or decide which existing repo you want to use). Copy its **HTTPS** URL — it will look like `https://github.com/<user>/<repo>.git`.
    *If you are following along with this workspace, the remote has already been pointed at [`https://github.com/stevewinfieldtx/solar-panels`](https://github.com/stevewinfieldtx/solar-panels); you can push there directly or swap in your own URL as needed.*
+2. Inside the workspace terminal, run:
+   ```bash
+   git remote add origin https://github.com/<user>/<repo>.git
+   ```
+   Replace the URL with your own. If a remote named `origin` already exists, replace the `add` command with:
+   ```bash
 2. Inside the workspace terminal, confirm the remote URL:
    ```bash
    git remote -v
@@ -24,11 +30,14 @@ This guide summarizes two common ways to move the code that lives in this Codesp
    git add .
    git commit -m "Describe your changes"
    ```
+4. Push the branch up to GitHub:
 4. Push the branch up to GitHub (this also establishes the tracking relationship so future `git pull` commands know which remote branch to use):
    ```bash
    git push -u origin work
    ```
    Replace `work` with whatever branch name you are using. Git will prompt for your GitHub credentials or personal access token the first time you push from this environment.
+
+Once the push finishes, your code is on GitHub. You can continue collaborating there or open a pull request as usual.
 
    If you already pushed without the `-u` flag or you cloned the workspace without an upstream branch, you can establish the link later with:
    ```bash
