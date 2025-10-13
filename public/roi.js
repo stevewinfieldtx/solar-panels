@@ -61,6 +61,37 @@ function deriveCityName() {
     return parts.length >= 2 ? parts[parts.length - 2].trim() : null;
 }
 
+function getShadeLossPercent() {
+    const percent = analysisData?.shadingAnalysis?.overallShadePercent;
+    if (typeof percent !== 'number' || !Number.isFinite(percent)) {
+        return null;
+    }
+    return Math.max(0, Math.round(percent));
+}
+
+function getShadeImpactLevel() {
+    const impact = analysisData?.shadingAnalysis?.impactLevel;
+    return typeof impact === 'string' ? impact : null;
+}
+
+function getShadePeakHours() {
+    const peaks = analysisData?.shadingAnalysis?.peakShadingHours;
+    if (!Array.isArray(peaks)) {
+        return [];
+    }
+
+    return peaks.map(peak => ({
+        time: peak.time,
+        impact: peak.impact,
+        averageShadePercent: peak.averageShadePercent
+    })).filter(item => typeof item.time === 'string');
+}
+
+function getShadeRecommendations() {
+    const recs = analysisData?.shadingAnalysis?.recommendations;
+    return Array.isArray(recs) ? recs : [];
+}
+
 // Load analysis data from localStorage
 window.addEventListener('DOMContentLoaded', () => {
     const storedData = localStorage.getItem('solarAnalysisData');
@@ -270,6 +301,13 @@ function formatCredit(value) {
     return `-$${rounded.toLocaleString()}`;
 }
 
+function formatPercentValue(value, fallback = '—') {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+        return fallback;
+    }
+    return `${Math.round(value)}%`;
+}
+
 function loadDefaults() {
     console.log('Loading defaults...');
 
@@ -472,7 +510,11 @@ async function calculateROI() {
                 homeValueMultiplier: parseFloat(document.getElementById('homeValueMultiplier').value),
                 currentHomeValue: parseFloat(document.getElementById('currentHomeValue').value) || null,
                 financingType: financingType,
-                loanRate: financingType !== 'cash' ? parseFloat(document.getElementById('customLoanRate').value) / 100 : null
+                loanRate: financingType !== 'cash' ? parseFloat(document.getElementById('customLoanRate').value) / 100 : null,
+                shadeLossPercent: getShadeLossPercent(),
+                shadeImpactLevel: getShadeImpactLevel(),
+                shadePeakHours: getShadePeakHours(),
+                shadeRecommendations: getShadeRecommendations()
             }
         };
         
@@ -577,6 +619,52 @@ function displayROIResults(data) {
         document.getElementById('localRebateValue').textContent = formatCredit(roi.costs.localRebate);
     } else {
         localLine.style.display = 'none';
+    const keyInsight = document.getElementById('keyInsight');
+    if (keyInsight) {
+        let insightText = `${paybackLine}. Solar production offsets ${formatCurrency(breakdown.monthlySavings)}/month today, ` +
+            `so once financing is gone you keep ${formatSignedCurrency(breakdown.afterLoan.monthlySavings)}/month. ` +
+            `During the loan your net change is ${formatSignedCurrency(breakdown.duringLoan.extraCostForSolar)}/month versus staying with the utility.`;
+
+        if (data.shadingImpact && Number.isFinite(data.shadingImpact.lossPercent) && data.shadingImpact.lossPercent > 1) {
+            insightText += ` Shade trims roughly ${formatPercentValue(data.shadingImpact.lossPercent)} of output, and the ROI above already reflects that loss.`;
+        }
+
+        if (Number.isFinite(roi.homeValueIncrease) && roi.homeValueIncrease > 0) {
+            insightText += ` Expect roughly ${formatCurrency(roi.homeValueIncrease)} in added property value, and homes with solar tend to sell ~20% faster once buyers see the lower utility bills.`;
+        }
+
+        keyInsight.textContent = insightText;
+    }
+
+    document.getElementById('grossCost').textContent = formatCurrency(roi.costs.grossCost);
+    document.getElementById('federalCredit').textContent = formatCredit(roi.costs.federalTaxCredit);
+    document.getElementById('netCost').textContent = formatCurrency(roi.costs.netCost);
+
+    const stateLine = document.getElementById('stateIncentiveLine');
+    if (roi.costs.stateTaxCredit > 0) {
+        stateLine.style.display = 'flex';
+        document.getElementById('stateIncentiveLabel').textContent =
+            (data.stateIncentive?.name || 'State Incentive') + ':';
+        document.getElementById('stateIncentiveValue').textContent = formatCredit(roi.costs.stateTaxCredit);
+    } else {
+        stateLine.style.display = 'none';
+    }
+
+    const localLine = document.getElementById('localRebateLine');
+    if (roi.costs.localRebate > 0) {
+        localLine.style.display = 'flex';
+        const localLabel = document.getElementById('localRebateLabel');
+        if (localLabel) {
+            const source = data.config?.localRebateSource || 'Local Rebate';
+            localLabel.textContent = `${source}:`;
+        }
+        document.getElementById('localRebateValue').textContent = formatCredit(roi.costs.localRebate);
+    } else {
+        localLine.style.display = 'none';
+        const localLabel = document.getElementById('localRebateLabel');
+        if (localLabel) {
+            localLabel.textContent = 'Local Rebate:';
+        }
     }
 
     document.getElementById('totalSavings').textContent = formatCurrency(roi.roi25Year.totalSavings);
@@ -594,9 +682,281 @@ function displayROIResults(data) {
     const carbonOffset = Math.round((roi.annualProduction * 25 * 0.92) / 2000);
     document.getElementById('carbonOffset').textContent = `${carbonOffset} tons`;
 
+    renderHomeValueCard(data);
+    renderIncentivesCard(data);
+    renderShadingCard(data);
     renderPurchaseScore(data);
 
     console.log('✅ ROI results displayed');
+}
+
+function renderHomeValueCard(data) {
+    const card = document.getElementById('homeValueCard');
+    if (!card) {
+        return;
+    }
+
+    const homeValueIncrease = data?.roi?.homeValueIncrease;
+    if (!Number.isFinite(homeValueIncrease) || homeValueIncrease <= 0) {
+        card.style.display = 'none';
+        return;
+    }
+
+    card.style.display = 'block';
+
+    const headline = document.getElementById('homeValueHeadline');
+    if (headline) {
+        headline.textContent = formatCurrency(homeValueIncrease);
+    }
+
+    const insights = [];
+    const currentHomeValue = data?.config?.currentHomeValue;
+    if (Number.isFinite(currentHomeValue) && currentHomeValue > 0) {
+        const percentBoost = ((homeValueIncrease / currentHomeValue) * 100).toFixed(1);
+        insights.push(`Approximately ${formatCurrency(homeValueIncrease)} added to a ${formatCurrency(currentHomeValue)} home (~${percentBoost}% premium).`);
+    } else {
+        insights.push(`Approximately ${formatCurrency(homeValueIncrease)} in appraisal value based on prevailing $/watt studies.`);
+    }
+
+    insights.push('Solar listings typically sell faster—national research shows 20% quicker sales once buyers see lower utility costs.');
+    insights.push('Homes with solar also command resale premiums around 4%; share this boost when talking with agents, appraisers, or lenders.');
+
+    const list = document.getElementById('homeValueInsights');
+    if (list) {
+        list.innerHTML = insights.map(text => `<li>${text}</li>`).join('');
+    }
+}
+
+function renderIncentivesCard(data) {
+    const card = document.getElementById('incentivesCard');
+    if (!card) {
+        return;
+    }
+
+    const summary = data?.incentiveSummary;
+    const applied = summary?.applied || [];
+    const potential = summary?.potential || [];
+    const notes = summary?.notes || [];
+
+    if (!applied.length && !potential.length && !notes.length) {
+        card.style.display = 'none';
+        return;
+    }
+
+    card.style.display = 'block';
+
+    const intro = document.getElementById('incentivesIntro');
+    if (intro) {
+        const appliedCount = applied.length;
+        const potentialCount = potential.length;
+        const appliedLabel = appliedCount === 1 ? 'incentive' : 'incentives';
+        intro.textContent = `We locked in ${appliedCount} ${appliedLabel} automatically and surfaced ${potentialCount} more to ask your installer about.`;
+    }
+
+    const appliedList = document.getElementById('appliedIncentivesList');
+    if (appliedList) {
+        appliedList.innerHTML = applied.length
+            ? applied.map(renderIncentiveItem).join('')
+            : '<li>No automatic incentives applied yet—add known rebates in the assumptions above.</li>';
+    }
+
+    const availableList = document.getElementById('availableIncentivesList');
+    if (availableList) {
+        availableList.innerHTML = potential.length
+            ? potential.map(renderIncentiveItem).join('')
+            : '<li>No additional programs surfaced—double-check with your installer or utility for local offers.</li>';
+    }
+
+    const footnote = document.getElementById('incentiveFootnote');
+    if (footnote) {
+        footnote.textContent = notes.join(' ');
+    }
+}
+
+function renderShadingCard(data) {
+    const card = document.getElementById('shadingCard');
+    if (!card) {
+        return;
+    }
+
+    const shadingImpact = data?.shadingImpact || {};
+    const shadingAnalysis = analysisData?.shadingAnalysis || {};
+
+    const lossPercent = Number.isFinite(shadingImpact.lossPercent)
+        ? shadingImpact.lossPercent
+        : (Number.isFinite(shadingAnalysis.overallShadePercent)
+            ? shadingAnalysis.overallShadePercent
+            : null);
+
+    const hasMeaningfulShade = lossPercent != null && lossPercent > 1;
+    const hasShadeData = shadingAnalysis && (shadingAnalysis.hasShading || lossPercent != null);
+    if (!hasShadeData) {
+        card.style.display = 'none';
+        return;
+    }
+
+    card.style.display = 'block';
+
+    const impactLevel = shadingImpact.impactLevel || shadingAnalysis.impactLevel || (hasMeaningfulShade ? 'Moderate' : 'Minimal');
+    const lostKwh = Number.isFinite(shadingImpact.lostKwh) ? shadingImpact.lostKwh : null;
+    const adjustedProduction = Number.isFinite(shadingImpact.adjustedAnnualProduction)
+        ? shadingImpact.adjustedAnnualProduction
+        : null;
+
+    const headline = document.getElementById('shadeHeadline');
+    if (headline) {
+        if (hasMeaningfulShade) {
+            headline.textContent = `${impactLevel} shading trims about ${formatPercentValue(lossPercent)}`;
+        } else {
+            headline.textContent = 'Shading impact is minimal';
+        }
+    }
+
+    const subheadline = document.getElementById('shadeSubheadline');
+    if (subheadline) {
+        subheadline.textContent = 'Google Solar API used aerial imagery to estimate tree coverage and shade losses.';
+    }
+
+    const lossMetric = document.getElementById('shadeLossValue');
+    if (lossMetric) {
+        if (lossPercent != null) {
+            lossMetric.textContent = formatPercentValue(lossPercent);
+            if (!hasMeaningfulShade && lossPercent < 1) {
+                lossMetric.textContent = '<1%';
+            }
+        } else {
+            lossMetric.textContent = 'Under 1%';
+        }
+    }
+
+    const lostKwhMetric = document.getElementById('shadeLostKwh');
+    if (lostKwhMetric) {
+        lostKwhMetric.textContent = hasMeaningfulShade && Number.isFinite(lostKwh) && lostKwh > 0
+            ? `${Math.round(lostKwh).toLocaleString()} kWh/yr`
+            : 'Negligible';
+    }
+
+    const adjustedMetric = document.getElementById('shadeAdjustedProduction');
+    if (adjustedMetric) {
+        adjustedMetric.textContent = Number.isFinite(adjustedProduction)
+            ? `${Math.round(adjustedProduction).toLocaleString()} kWh/yr`
+            : '—';
+    }
+
+    const peaksContainer = document.getElementById('shadePeaks');
+    if (peaksContainer) {
+        const peaks = Array.isArray(shadingAnalysis.peakShadingHours) ? shadingAnalysis.peakShadingHours : [];
+        if (peaks.length && hasMeaningfulShade) {
+            peaksContainer.innerHTML = peaks.map(peak => {
+                const impact = peak.impact || '';
+                const impactClass = impact ? impact.toLowerCase().replace(/[^a-z]/g, '-') : '';
+                return `
+                    <div class="shade-peak ${impactClass}">
+                        <span class="peak-time">${peak.time || ''}</span>
+                        <span class="peak-impact">${impact}</span>
+                        <span class="peak-percent">${formatPercentValue(peak.averageShadePercent)}</span>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            peaksContainer.innerHTML = '<p class="shade-peaks-empty">No pronounced shade windows detected.</p>';
+        }
+    }
+
+    const recommendationsList = document.getElementById('shadeRecommendations');
+    if (recommendationsList) {
+        const recommendations = shadingAnalysis.recommendations && shadingAnalysis.recommendations.length
+            ? shadingAnalysis.recommendations
+            : ['Tree coverage looks manageable—keep branches trimmed to maintain performance.'];
+        recommendationsList.innerHTML = recommendations.map(rec => `<li>${rec}</li>`).join('');
+    }
+
+    const note = document.getElementById('shadeSourceNote');
+    if (note) {
+        note.textContent = hasMeaningfulShade
+            ? 'These losses are baked into the ROI math so savings reflect tree coverage.'
+            : 'No meaningful shade detected, so the ROI uses full production from Google’s solar model.';
+    }
+}
+
+function renderIncentiveItem(item = {}) {
+    const name = item.name || 'Incentive';
+    const valueLabel = formatIncentiveValue(item);
+    const header = `
+        <div class="incentive-header">
+            <div class="incentive-name">${name}</div>
+            ${valueLabel ? `<div class="incentive-value">${valueLabel}</div>` : ''}
+        </div>
+    `;
+
+    const metaParts = [];
+    const type = item.category || item.type;
+    if (type) {
+        metaParts.push(`<span class="incentive-badge ${type}">${formatIncentiveType(type)}</span>`);
+    }
+    if (item.provider) {
+        metaParts.push(`<span class="incentive-provider">${item.provider}</span>`);
+    }
+    if (Array.isArray(item.cities) && item.cities.length) {
+        metaParts.push(`<span class="incentive-provider">Cities: ${item.cities.join(', ')}</span>`);
+    }
+    if (item.appliesTo) {
+        metaParts.push(`<span class="incentive-provider">Applies to ${item.appliesTo}</span>`);
+    }
+
+    const meta = metaParts.length ? `<div class="incentive-meta">${metaParts.join(' ')}</div>` : '';
+    const description = item.description ? `<div class="incentive-description">${item.description}</div>` : '';
+
+    return `<li>${header}${meta}${description}</li>`;
+}
+
+function formatIncentiveValue(item) {
+    if (!item) {
+        return '';
+    }
+
+    if (Number.isFinite(item.value)) {
+        return formatCurrency(item.value);
+    }
+
+    if (Number.isFinite(item.estimatedValue)) {
+        return `≈ ${formatCurrency(item.estimatedValue)}`;
+    }
+
+    if (Number.isFinite(item.estimatedValueFlat)) {
+        return `≈ ${formatCurrency(item.estimatedValueFlat)}`;
+    }
+
+    if (Number.isFinite(item.estimatedValuePercent)) {
+        return `≈ ${item.estimatedValuePercent}%`;
+    }
+
+    return '';
+}
+
+function formatIncentiveType(type) {
+    if (!type) {
+        return 'Incentive';
+    }
+
+    const normalized = String(type).toLowerCase();
+    const mapping = {
+        federal: 'Federal',
+        state: 'State',
+        local: 'Local',
+        vendor: 'Installer',
+        utility: 'Utility'
+    };
+
+    return mapping[normalized] || capitalize(normalized);
+}
+
+function capitalize(text) {
+    if (!text) {
+        return '';
+    }
+
+    return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 function renderPurchaseScore(data) {

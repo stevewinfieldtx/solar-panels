@@ -12,6 +12,115 @@ function parseNumber(value) {
     return Number.isFinite(numeric) ? numeric : null;
 }
 
+function normalizeCityName(city) {
+    return typeof city === 'string' && city.trim().length
+        ? city.trim().toLowerCase()
+        : null;
+}
+
+function filterProgramsForLocation(programs = [], city) {
+    if (!Array.isArray(programs)) {
+        return [];
+    }
+
+    const normalizedCity = normalizeCityName(city);
+
+    return programs.filter(program => {
+        if (!Array.isArray(program.cities) || program.cities.length === 0) {
+            return true;
+        }
+
+        if (!normalizedCity) {
+            return false;
+        }
+
+        return program.cities.some(c => normalizeCityName(c) === normalizedCity);
+    });
+}
+
+function estimateProgramValue(program, systemSizeKW, annualProduction) {
+    if (!program || !program.valueType) {
+        return null;
+    }
+
+    const watts = Number.isFinite(systemSizeKW) ? systemSizeKW * 1000 : null;
+    let estimate = null;
+
+    switch (program.valueType) {
+        case 'perWatt':
+            if (watts != null && Number.isFinite(program.value)) {
+                estimate = watts * program.value;
+            }
+            break;
+        case 'flat':
+            if (Number.isFinite(program.value)) {
+                estimate = program.value;
+            }
+            break;
+        case 'billCredit':
+            if (Number.isFinite(annualProduction) && Number.isFinite(program.value)) {
+                estimate = annualProduction * program.value;
+            }
+            break;
+        case 'perWattHour':
+            // Storage-focused incentives are highly configuration-specific; leave as guidance only.
+            estimate = null;
+            break;
+        default:
+            estimate = null;
+    }
+
+    if (estimate != null && Number.isFinite(program.maxValue)) {
+        estimate = Math.min(estimate, program.maxValue);
+    }
+
+    return estimate != null && Number.isFinite(estimate)
+        ? Math.round(estimate)
+        : null;
+}
+
+function describeProgram(program, systemSizeKW, annualProduction) {
+    if (!program) {
+        return null;
+    }
+
+    return {
+        name: program.name,
+        provider: program.provider,
+        type: program.type || null,
+        description: program.description || null,
+        estimatedValue: estimateProgramValue(program, systemSizeKW, annualProduction),
+        valueType: program.valueType || null,
+        maxValue: program.maxValue || null,
+        appliesTo: program.appliesTo || null,
+        url: program.url || null,
+        cities: Array.isArray(program.cities) ? program.cities : null
+    };
+}
+
+function selectBestAutomaticProgram(programs, systemSizeKW, annualProduction) {
+    if (!Array.isArray(programs) || programs.length === 0) {
+        return null;
+    }
+
+    let best = null;
+
+    programs.forEach(program => {
+        if (!['perWatt', 'flat'].includes(program.valueType)) {
+            return;
+        }
+
+        const estimate = estimateProgramValue(program, systemSizeKW, annualProduction);
+        if (estimate && estimate > 0) {
+            if (!best || estimate > best.amount) {
+                best = { program, amount: estimate };
+            }
+        }
+    });
+
+    return best;
+}
+
 module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -96,6 +205,61 @@ module.exports = async (req, res) => {
         const normalizedHomeValue = parseNumber(userInputs.currentHomeValue);
         const normalizedLoanRate = parseNumber(userInputs.loanRate);
         const normalizedLoanTerm = parseNumber(userInputs.loanTerm);
+        const normalizedShadeLossPercent = parseNumber(userInputs.shadeLossPercent);
+
+        const shadeImpactLevel = typeof userInputs.shadeImpactLevel === 'string'
+            ? userInputs.shadeImpactLevel
+            : null;
+
+        const shadePeakHours = Array.isArray(userInputs.shadePeakHours)
+            ? userInputs.shadePeakHours.slice(0, 5)
+            : [];
+
+        const shadeRecommendations = Array.isArray(userInputs.shadeRecommendations)
+            ? userInputs.shadeRecommendations.slice(0, 10)
+            : [];
+
+        const stateLocalPrograms = ROIConfig.incentives.localRebates[normalizedState] || [];
+        const defaultLocalPrograms = ROIConfig.incentives.localRebates.DEFAULT || [];
+        let applicableLocalPrograms = filterProgramsForLocation(stateLocalPrograms, normalizedCity);
+
+        if (!applicableLocalPrograms.length && stateLocalPrograms.length) {
+            applicableLocalPrograms = stateLocalPrograms.filter(program =>
+                !Array.isArray(program.cities) || program.cities.length === 0
+            );
+        }
+
+        if (!applicableLocalPrograms.length) {
+            applicableLocalPrograms = filterProgramsForLocation(defaultLocalPrograms, normalizedCity);
+        }
+
+        const automaticLocal = selectBestAutomaticProgram(
+            applicableLocalPrograms,
+            parsedSystemSize,
+            parsedAnnualProduction
+        );
+
+        let appliedLocalRebate = normalizedLocalRebate;
+        let appliedLocalProgram = null;
+        let localRebateSource = null;
+
+        if ((appliedLocalRebate == null || appliedLocalRebate === 0) && automaticLocal) {
+            appliedLocalRebate = automaticLocal.amount;
+            appliedLocalProgram = automaticLocal.program;
+            localRebateSource = automaticLocal.program?.name || null;
+        } else if (appliedLocalRebate != null && appliedLocalRebate > 0) {
+            localRebateSource = 'User provided rebate';
+        }
+
+        if (appliedLocalRebate == null) {
+            appliedLocalRebate = 0;
+        }
+
+        const vendorProgramsForState = ROIConfig.incentives.vendorPrograms[normalizedState] || [];
+        const vendorProgramsFallback = ROIConfig.incentives.vendorPrograms.DEFAULT || [];
+        const vendorPrograms = vendorProgramsForState.length
+            ? vendorProgramsForState
+            : vendorProgramsFallback;
 
         const config = {
             quality: 'residential',
@@ -106,6 +270,7 @@ module.exports = async (req, res) => {
             stateTaxCredit: stateIncentive?.stateTaxCredit ?? 0,
             maxStateCredit: stateIncentive?.maxCredit ?? null,
             localRebate: normalizedLocalRebate,
+            localRebate: appliedLocalRebate,
             annualRateIncrease: normalizedRateIncrease ?? growthData.rate,
             panelDegradation: normalizedPanelDegradation ?? ROIConfig.system.panelDegradation,
             annualMaintenance: normalizedMaintenance ?? ROIConfig.system.annualMaintenance,
@@ -115,6 +280,12 @@ module.exports = async (req, res) => {
             financingType: userInputs.financingType || 'loan10',
             loanRate: normalizedLoanRate,
             loanTerm: normalizedLoanTerm
+            loanTerm: normalizedLoanTerm,
+            localRebateSource,
+            shadeLossPercent: normalizedShadeLossPercent,
+            shadeImpactLevel,
+            shadePeakHours,
+            shadeRecommendations
         };
 
         const roiCalc = new ROICalculator();
@@ -129,9 +300,121 @@ module.exports = async (req, res) => {
             roi,
             energyRate.rate,
             parsedAnnualProduction,
+            energyRate.rate,
+            config
+        );
+
+        const monthlyBreakdown = roiCalc.calculateMonthlyBreakdown(
+            roi,
+            energyRate.rate,
+            roi.shading?.adjustedAnnualProduction ?? parsedAnnualProduction,
             config.currentMonthlyBill,
             config
         );
+
+        const appliedIncentives = [];
+        const potentialIncentives = [];
+        const incentiveNotes = [];
+
+        if (roi.costs?.federalTaxCredit > 0) {
+            appliedIncentives.push({
+                name: 'Federal Investment Tax Credit',
+                type: 'federal',
+                value: roi.costs.federalTaxCredit,
+                description: '30% credit applied to eligible solar installation costs.'
+            });
+        }
+
+        if (roi.costs?.stateTaxCredit > 0) {
+            appliedIncentives.push({
+                name: stateIncentive?.name || 'State Tax Credit',
+                type: 'state',
+                value: roi.costs.stateTaxCredit,
+                description: stateIncentive?.description || 'State-level credit or exemption applied to system cost.',
+                provider: stateIncentive?.name || null
+            });
+        } else if (stateIncentive?.propertyTaxExempt) {
+            incentiveNotes.push('State law exempts qualified solar equipment from property tax assessments.');
+        }
+
+        if (appliedLocalRebate > 0) {
+            appliedIncentives.push({
+                name: localRebateSource || 'Local rebate',
+                type: 'local',
+                value: appliedLocalRebate,
+                description: appliedLocalProgram?.description || 'Local rebate applied to upfront costs.',
+                provider: appliedLocalProgram?.provider || null
+            });
+        }
+
+        const uniqueLocalPrograms = Array.isArray(applicableLocalPrograms)
+            ? applicableLocalPrograms.filter(program =>
+                !appliedLocalProgram || program.name !== appliedLocalProgram.name
+            )
+            : [];
+
+        uniqueLocalPrograms.forEach(program => {
+            const summary = describeProgram(program, parsedSystemSize, parsedAnnualProduction);
+            if (summary) {
+                potentialIncentives.push({
+                    ...summary,
+                    category: 'local'
+                });
+            }
+        });
+
+        vendorPrograms.forEach(program => {
+            const summary = {
+                name: program.name,
+                provider: program.provider,
+                type: 'vendor',
+                description: program.description || null,
+                estimatedValue: null,
+                estimatedValuePercent: program.estimatedValuePercent || null,
+                estimatedValueFlat: program.estimatedValue || null,
+                category: 'vendor'
+            };
+
+            if (program.estimatedValuePercent && roi.costs?.grossCost) {
+                const percentValue = (program.estimatedValuePercent / 100) * roi.costs.grossCost;
+                summary.estimatedValue = Math.round(percentValue);
+            } else if (program.estimatedValue && Number.isFinite(program.estimatedValue)) {
+                summary.estimatedValue = Math.round(program.estimatedValue);
+            }
+
+            potentialIncentives.push(summary);
+        });
+
+        if (stateIncentive?.sgipRebate) {
+            potentialIncentives.push({
+                name: 'California SGIP Bonus',
+                provider: 'CPUC',
+                type: 'state',
+                description: 'Pair storage with solar to unlock Self-Generation Incentive Program rebates.',
+                estimatedValue: null,
+                category: 'state'
+            });
+        }
+
+        if (!potentialIncentives.length && incentiveNotes.length === 0) {
+            incentiveNotes.push('Check with your utility or installer—many offer seasonal rebates or bill credits.');
+        }
+
+        const shadingImpact = {
+            lossPercent: roi.shading?.shadingLossPercent ?? (normalizedShadeLossPercent || 0),
+            impactLevel: shadeImpactLevel,
+            peakHours: shadePeakHours,
+            recommendations: shadeRecommendations,
+            adjustedAnnualProduction: roi.shading?.adjustedAnnualProduction ?? roi.annualProduction,
+            lostKwh: roi.shading?.lostKwh ?? 0,
+            productionMultiplier: roi.shading?.shadingMultiplier ?? null
+        };
+
+        const incentiveSummary = {
+            applied: appliedIncentives,
+            potential: potentialIncentives,
+            notes: incentiveNotes
+        };
 
         const response = {
             success: true,
@@ -143,6 +426,8 @@ module.exports = async (req, res) => {
             config: config,
             roi: roi,
             monthlyBreakdown: monthlyBreakdown,
+            incentiveSummary,
+            shadingImpact,
             timestamp: new Date().toISOString()
         };
 
