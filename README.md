@@ -39,6 +39,7 @@ npm install
 - [Local navigation commands](docs/local-navigation.md)
 - [Vercel deployment guide](docs/vercel-deployment.md)
 - [Sample narrative report](docs/narrative-report-example.md)
+- [Resolve `api/calculate-roi.js` merge conflicts](docs/merge-conflict-resolution.md)
 
 \## Deploying to Vercel
 

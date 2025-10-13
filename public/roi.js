@@ -17,6 +17,18 @@ let analysisData = null;
 let selectedSegments = [];
 let roiConfig = null;
 
+function getRoofSegments() {
+    if (Array.isArray(analysisData?.roofSegments)) {
+        return analysisData.roofSegments;
+    }
+
+    if (Array.isArray(analysisData?.segments)) {
+        return analysisData.segments;
+    }
+
+    return [];
+}
+
 function deriveStateCode() {
     if (analysisData?.location?.state) {
         return analysisData.location.state.toUpperCase();
@@ -120,14 +132,39 @@ function initializeROIPage() {
 
 function displaySegments() {
     const segmentsList = document.getElementById('segmentsList');
-    const segments = analysisData.roofSegments;
-    
+    if (!segmentsList) {
+        console.error('Segments list container not found');
+        return;
+    }
+
+    const segments = getRoofSegments();
+
+    if (!segments.length) {
+        segmentsList.innerHTML = `
+            <div class="segments-empty">
+                <p>No roof segments were saved with this analysis.</p>
+                <p class="segments-empty-sub">Run a new roof analysis to pick segments for ROI modeling.</p>
+            </div>
+        `;
+        const summary = document.querySelector('.selection-summary');
+        if (summary) {
+            summary.style.display = 'none';
+        }
+        console.warn('⚠️ No roof segments found in analysis data');
+        return;
+    }
+
+    const summary = document.querySelector('.selection-summary');
+    if (summary) {
+        summary.style.display = '';
+    }
+
     console.log('Displaying segments:', segments.length);
-    
+
     segmentsList.innerHTML = segments.map(segment => `
         <label class="segment-checkbox" data-segment-id="${segment.id}">
-            <input 
-                type="checkbox" 
+            <input
+                type="checkbox"
                 value="${segment.id}"
                 onchange="toggleSegment(${segment.id})"
                 ${segment.efficiency >= 70 ? 'checked' : ''}
@@ -138,43 +175,50 @@ function displaySegments() {
                 </div>
                 <div class="segment-detail">
                     <span class="label">Direction</span>
-                    <span class="value">${segment.direction}</span>
+                    <span class="value">${segment.direction || '—'}</span>
                 </div>
                 <div class="segment-detail">
                     <span class="label">Efficiency</span>
-                    <span class="segment-efficiency" style="background-color: ${segment.color};">
-                        ${segment.efficiency}%
+                    <span class="segment-efficiency" style="background-color: ${segment.color || '#555'};">
+                        ${segment.efficiency ?? '—'}%
                     </span>
                 </div>
                 <div class="segment-detail">
                     <span class="label">Panels</span>
-                    <span class="value">${segment.panelCapacity} panels</span>
+                    <span class="value">${segment.panelCapacity ?? 0} panels</span>
                 </div>
             </div>
         </label>
     `).join('');
-    
+
     console.log('✅ Segments displayed');
 }
 
 function preselectSegments() {
-    selectedSegments = analysisData.roofSegments
-        .filter(seg => seg.efficiency >= 70)
+    const segments = getRoofSegments();
+    if (!segments.length) {
+        selectedSegments = [];
+        updateSegmentSelection();
+        return;
+    }
+
+    selectedSegments = segments
+        .filter(seg => Number(seg.efficiency) >= 70)
         .map(seg => seg.id);
-    
+
     console.log('Pre-selected segments:', selectedSegments);
     updateSegmentSelection();
 }
 
 function toggleSegment(segmentId) {
     const index = selectedSegments.indexOf(segmentId);
-    
+
     if (index > -1) {
         selectedSegments.splice(index, 1);
     } else {
         selectedSegments.push(segmentId);
     }
-    
+
     updateSegmentSelection();
     updateSelectionSummary();
     updateFinancingAmounts();
@@ -192,14 +236,13 @@ function updateSegmentSelection() {
 }
 
 function updateSelectionSummary() {
-    const selected = analysisData.roofSegments.filter(seg => 
-        selectedSegments.includes(seg.id)
-    );
-    
-    const totalPanels = selected.reduce((sum, seg) => sum + seg.panelCapacity, 0);
+    const segments = getRoofSegments();
+    const selected = segments.filter(seg => selectedSegments.includes(seg.id));
+
+    const totalPanels = selected.reduce((sum, seg) => sum + (Number(seg.panelCapacity) || 0), 0);
     const systemSizeKW = Math.round(totalPanels * 0.4 * 10) / 10;
     const annualProduction = calculateAnnualProduction(selected);
-    
+
     document.getElementById('selectedPanels').textContent = totalPanels;
     document.getElementById('selectedSystemSize').textContent = `${systemSizeKW} kW`;
     document.getElementById('selectedProduction').textContent = `${annualProduction.toLocaleString()} kWh`;
@@ -208,11 +251,16 @@ function updateSelectionSummary() {
 }
 
 function calculateAnnualProduction(segments) {
+    if (!Array.isArray(segments) || !segments.length) {
+        return 0;
+    }
+
     const totalProduction = segments.reduce((sum, seg) => {
-        const panelOutput = seg.panelCapacity * 400;
-        const hoursPerYear = seg.sunshineHours;
-        const efficiency = seg.efficiency / 100;
-        const production = (panelOutput * hoursPerYear * efficiency) / 1000;
+        const panelCapacity = Number(seg.panelCapacity) || 0;
+        const panelOutput = panelCapacity * PANEL_WATTAGE;
+        const hoursPerYear = Number(seg.sunshineHours) || 0;
+        const efficiency = Number(seg.efficiency) / 100 || 0;
+        const production = (panelOutput * hoursPerYear * Math.max(0, efficiency)) / 1000;
         return sum + production;
     }, 0);
 
@@ -329,9 +377,8 @@ function loadDefaults() {
     document.getElementById('rateIncreaseHint').textContent = 
         `Historical ${state} average (2015-2024)`;
     
-    const selected = analysisData.roofSegments.filter(seg => 
-        selectedSegments.includes(seg.id)
-    );
+    const segments = getRoofSegments();
+    const selected = segments.filter(seg => selectedSegments.includes(seg.id));
     const annualProduction = calculateAnnualProduction(selected);
     const estimatedBill = Math.round((annualProduction / 12) * energyRate * 1.15);
     document.getElementById('currentMonthlyBill').value = estimatedBill.toString();
@@ -399,10 +446,9 @@ function getDefaultRateIncrease(state) {
 }
 
 function updateFinancingAmounts() {
-    const selected = analysisData.roofSegments.filter(seg => 
-        selectedSegments.includes(seg.id)
-    );
-    
+    const segments = getRoofSegments();
+    const selected = segments.filter(seg => selectedSegments.includes(seg.id));
+
     if (selected.length === 0) {
         document.getElementById('cashAmount').textContent = '$0';
         document.getElementById('loan10Amount').textContent = '$0';
@@ -411,7 +457,7 @@ function updateFinancingAmounts() {
         return;
     }
     
-    const totalPanels = selected.reduce((sum, seg) => sum + seg.panelCapacity, 0);
+    const totalPanels = selected.reduce((sum, seg) => sum + (Number(seg.panelCapacity) || 0), 0);
     const systemSizeKW = Math.round(totalPanels * 0.4 * 10) / 10;
     
     const costPerWatt = getCostPerWatt();
@@ -473,19 +519,30 @@ async function calculateROI() {
         alert('Please select at least one roof segment');
         return;
     }
-    
+
     const button = document.querySelector('.calculate-action button');
     button.disabled = true;
     button.textContent = 'Calculating...';
-    
+
     try {
-        const selected = analysisData.roofSegments.filter(seg => 
-            selectedSegments.includes(seg.id)
-        );
-        
-        const totalPanels = selected.reduce((sum, seg) => sum + seg.panelCapacity, 0);
+        const segments = getRoofSegments();
+        if (!segments.length) {
+            throw new Error('No roof segments available. Run a roof analysis again to refresh the ROI inputs.');
+        }
+
+        const selected = segments.filter(seg => selectedSegments.includes(seg.id));
+
+        if (!selected.length) {
+            throw new Error('Please select at least one viable roof segment with production data.');
+        }
+
+        const totalPanels = selected.reduce((sum, seg) => sum + (Number(seg.panelCapacity) || 0), 0);
         const systemSizeKW = Math.round(totalPanels * 0.4 * 10) / 10;
         const annualProduction = calculateAnnualProduction(selected);
+
+        if (!systemSizeKW || !annualProduction) {
+            throw new Error('The selected roof segments do not include usable sizing data. Try re-running the roof analysis to refresh the segment details.');
+        }
         
         const financingType = document.querySelector('input[name="financing"]:checked').value;
         
@@ -619,6 +676,23 @@ function displayROIResults(data) {
         document.getElementById('localRebateValue').textContent = formatCredit(roi.costs.localRebate);
     } else {
         localLine.style.display = 'none';
+    const keyInsight = document.getElementById('keyInsight');
+    if (keyInsight) {
+        let insightText = `${paybackLine}. Solar production offsets ${formatCurrency(breakdown.monthlySavings)}/month today, ` +
+            `so once financing is gone you keep ${formatSignedCurrency(breakdown.afterLoan.monthlySavings)}/month. ` +
+            `During the loan your net change is ${formatSignedCurrency(breakdown.duringLoan.extraCostForSolar)}/month versus staying with the utility.`;
+
+        if (data.shadingImpact && Number.isFinite(data.shadingImpact.lossPercent) && data.shadingImpact.lossPercent > 1) {
+            insightText += ` Shade trims roughly ${formatPercentValue(data.shadingImpact.lossPercent)} of output, and the ROI above already reflects that loss.`;
+        }
+
+        if (Number.isFinite(roi.homeValueIncrease) && roi.homeValueIncrease > 0) {
+            insightText += ` Expect roughly ${formatCurrency(roi.homeValueIncrease)} in added property value, and homes with solar tend to sell ~20% faster once buyers see the lower utility bills.`;
+        }
+
+        keyInsight.textContent = insightText;
+    }
+
     const keyInsight = document.getElementById('keyInsight');
     if (keyInsight) {
         let insightText = `${paybackLine}. Solar production offsets ${formatCurrency(breakdown.monthlySavings)}/month today, ` +

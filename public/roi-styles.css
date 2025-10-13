@@ -37,6 +37,23 @@
     margin-bottom: 30px;
 }
 
+.segments-empty {
+    grid-column: 1 / -1;
+    background: #f8f9fb;
+    border: 1px dashed #cfd8dc;
+    border-radius: 12px;
+    padding: 32px 24px;
+    text-align: center;
+    color: #455a64;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.segments-empty-sub {
+    margin-top: 8px;
+    color: #78909c;
+}
+
 .segment-checkbox {
     display: flex;
     align-items: center;

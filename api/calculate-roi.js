@@ -312,6 +312,18 @@ module.exports = async (req, res) => {
             config
         );
 
+            energyRate.rate,
+            config
+        );
+
+        const monthlyBreakdown = roiCalc.calculateMonthlyBreakdown(
+            roi,
+            energyRate.rate,
+            roi.shading?.adjustedAnnualProduction ?? parsedAnnualProduction,
+            config.currentMonthlyBill,
+            config
+        );
+
         const appliedIncentives = [];
         const potentialIncentives = [];
         const incentiveNotes = [];
