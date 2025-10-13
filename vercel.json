@@ -16,9 +16,17 @@
     {
       "src": "api/geocode.js",
       "use": "@vercel/node"
+    },
+    {
+      "src": "api/calculate-roi.js",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
+    {
+      "src": "/api/calculate-roi",
+      "dest": "/api/calculate-roi.js"
+    },
     {
       "src": "/api/(.*)",
       "dest": "/api/$1"
